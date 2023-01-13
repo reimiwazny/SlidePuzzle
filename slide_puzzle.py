@@ -3,19 +3,33 @@ from random import choice
 
 sg.theme('DarkPurple7')
 
-active_color = '#B1B7C5'
-disabled_color = '#191930'
+ACTIVE_COLOR = '#B1B7C5'
+DISABLED_COLOR = '#191930'
+FONT_SET = ('Arial', 20)
+shuffle_factor = 100
+total_moves = 0
+use_limit = False
+move_limit = 0
 
-def initialize_tiles():
-	tiles = [	[sg.Button('1', size=(6,2), pad=0, key=(3,0)), sg.Button('2', size=(6,2), pad=0, key=(3,1)), sg.Button('3', size=(6,2), pad=0, key=(3,2)), sg.Button('4', size=(6,2), pad=0, key=(3,3))],
-				[sg.Button('5', size=(6,2), pad=0, key=(2,0)), sg.Button('6', size=(6,2), pad=0, key=(2,1)), sg.Button('7', size=(6,2), pad=0, key=(2,2)), sg.Button('8', size=(6,2), pad=0, key=(2,3))],
-				[sg.Button('9', size=(6,2), pad=0, key=(1,0)), sg.Button('10', size=(6,2), pad=0, key=(1,1)), sg.Button('11', size=(6,2), pad=0, key=(1,2)), sg.Button('12', size=(6,2), pad=0, key=(1,3))],
-				[sg.Button('13', size=(6,2), pad=0, key=(0,0)), sg.Button('14', size=(6,2), pad=0, key=(0,1)), sg.Button('15', size=(6,2), pad=0, key=(0,2)), sg.Button(' ', size=(6,2), pad=0, key=(0,3), button_color = ('#191930'))]]
-	ids = [x.key for row in tiles for x in row]
-	return tiles, ids
+def initialize_tiles(mode='init'):
+	if mode == 'init':
+		tiles = [	[sg.Button('1', size=(6,2), pad=0, key=(3,0)), sg.Button('2', size=(6,2), pad=0, key=(3,1)), sg.Button('3', size=(6,2), pad=0, key=(3,2)), sg.Button('4', size=(6,2), pad=0, key=(3,3))],
+					[sg.Button('5', size=(6,2), pad=0, key=(2,0)), sg.Button('6', size=(6,2), pad=0, key=(2,1)), sg.Button('7', size=(6,2), pad=0, key=(2,2)), sg.Button('8', size=(6,2), pad=0, key=(2,3))],
+					[sg.Button('9', size=(6,2), pad=0, key=(1,0)), sg.Button('10', size=(6,2), pad=0, key=(1,1)), sg.Button('11', size=(6,2), pad=0, key=(1,2)), sg.Button('12', size=(6,2), pad=0, key=(1,3))],
+					[sg.Button('13', size=(6,2), pad=0, key=(0,0)), sg.Button('14', size=(6,2), pad=0, key=(0,1)), sg.Button('15', size=(6,2), pad=0, key=(0,2)), sg.Button(' ', size=(6,2), pad=0, key=(0,3), button_color = ('#191930'))]]
+		ids = [x.key for row in tiles for x in row]
+		return tiles, ids
+	else:
+		label = 1
+		for button in button_ids:
+			if label < 16:
+				window[button].update(text=label, button_color=ACTIVE_COLOR)
+			else:
+				window[button].update(text = ' ', button_color=DISABLED_COLOR)
+			label +=1
 
-def randomize_tiles(button_ids, empty_key):
-	for x in range(100):
+def randomize_tiles(button_ids, empty_key, shuffle_factor):
+	for x in range(shuffle_factor):
 		below = (empty_key[0], empty_key[1]-1)
 		above = (empty_key[0], empty_key[1]+1)
 		left = (empty_key[0]-1, empty_key[1])
@@ -23,10 +37,9 @@ def randomize_tiles(button_ids, empty_key):
 		adjacent = [x for x in [below, above, left, right] if all(elem >= 0 and elem <= 3 for elem in x)]
 		target = choice(adjacent)
 		targ_num = window[target].get_text()
-		window[target].update(text = ' ', button_color = disabled_color)
-		window[empty_key].update(text=targ_num, button_color=active_color)
+		window[target].update(text = ' ', button_color = DISABLED_COLOR)
+		window[empty_key].update(text=targ_num, button_color=ACTIVE_COLOR)
 		empty_key = target
-
 
 def slide_tile(block_key):
 	valid = False
@@ -39,14 +52,15 @@ def slide_tile(block_key):
 	adjacent = [left, right, above, below]
 	for block in adjacent:
 		if all(elem >= 0 and elem <= 3 for elem in block):
-			if window[block].ButtonColor[1] == disabled_color:
+			if window[block].ButtonColor[1] == DISABLED_COLOR:
 				valid = True
 				empty_key = block
 	if valid:
-		window[empty_key].update(button_color = active_color)
+		window[empty_key].update(button_color = ACTIVE_COLOR)
 		window[empty_key].update(block_num)
-		window[block_key].update(button_color = disabled_color)
+		window[block_key].update(button_color = DISABLED_COLOR)
 		window[block_key].update(' ')
+	return valid
 
 def check_win(button_ids):
 	for x in range(15):
@@ -58,20 +72,62 @@ def check_win(button_ids):
 			return False
 	return True
 
+def new_game_menu(font_set=FONT_SET):
+	s_factor_tooltip = 'How many \'steps\' the game will take when randomizing the puzzle.\nA low number might make it too easy.'
+	limit_tooltip = 'Check this if you want to limit how many moves you have to solve the puzzle.'
+	limit_num_tooltip = 'The maximum number of moves to solve the puzzle(Only if \'Use Move Limit\' is enabled).'
+
+	layout = [	[sg.Push(), sg.Text('Game Setup'), sg.Push()],
+					[sg.Text('Shuffle Factor:'), sg.Input(size=10, default_text='100', tooltip=s_factor_tooltip, key='SHUFF')],
+					[sg.Text('Use Move Limit?'), sg.Checkbox(text=None,tooltip=limit_tooltip, key='LIMIT')],
+					[sg.Text('Max Moves:'), sg.Input(size=10, default_text='100', tooltip=limit_num_tooltip, key='MAXMOVES')],
+					[sg.Button('Play!', key='STARTGAME'), sg.Button('Cancel', key='BACK')]	]
+
+	window = sg.Window(title='Game Setup', layout=layout, font=font_set, modal=True)
+
+	while True:
+		event, values = window.read()
+		if event in (sg.WIN_CLOSED, 'BACK'):
+			window.close()
+			return 100, False, 100, False
+		if event == 'STARTGAME':
+			window.close()
+			return int(values['SHUFF']), values['LIMIT'], values['MAXMOVES'], True
+
+	window.close()
+
 tiles_grid, button_ids = initialize_tiles()
 
+status_window = [	[sg.Text('Total Moves Made:'), sg.Text(0, key='MOVES') ],
+							[sg.Button('New Game', key='NEWGAME'), sg.Button('About', key='ABOUT')]	]
 
-window = sg.Window('Slide Puzzle', tiles_grid, font=('any', 20), finalize=True)
-randomize_tiles(button_ids, button_ids[-1])
+layout = [	[sg.Frame(title=None, layout=tiles_grid, border_width=0)], 
+				[sg.Frame(title=None, layout=status_window, border_width=0)]	]
+
+
+window = sg.Window('Slide Puzzle', layout, font=FONT_SET, finalize=True, element_justification='center')
+randomize_tiles(button_ids, button_ids[-1], shuffle_factor)
 
 while True:
 	event, values = window.read()
 	if event == sg.WIN_CLOSED:
 		break
 	if event in button_ids and window[event].get_text() != ' ':
-		slide_tile(event)
+		if slide_tile(event):
+			total_moves += 1
+			window['MOVES'].update(total_moves)
 		if check_win(button_ids):
-			sg.popup_ok("You win!", font=('any', 20))
-			randomize_tiles(button_ids, button_ids[-1])	
+			sg.popup_ok("You win!", font=FONT_SET)
+			tiles_grid, button_ids = initialize_tiles()
+			total_moves = 0
+			window['MOVES'].update(total_moves)
+			# randomize_tiles(button_ids, button_ids[-1], shuffle_factor)	
+	if event == 'NEWGAME':
+		shuffle_factor, use_limit, move_limit, is_new = new_game_menu()
+		if is_new:
+			initialize_tiles(mode='new')
+			randomize_tiles(button_ids, button_ids[-1], shuffle_factor)
+			total_moves = 0
+			window['MOVES'].update(total_moves)
 
 window.close()
