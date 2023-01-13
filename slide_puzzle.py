@@ -121,11 +121,11 @@ while True:
 			tiles_grid, button_ids = initialize_tiles()
 			total_moves = 0
 			window['MOVES'].update(total_moves)
-			# randomize_tiles(button_ids, button_ids[-1], shuffle_factor)	
+			randomize_tiles(button_ids, button_ids[-1], shuffle_factor)	
 	if event == 'NEWGAME':
 		shuffle_factor, use_limit, move_limit, is_new = new_game_menu()
 		if is_new:
-			initialize_tiles(mode='new')
+			initialize_tiles('new')
 			randomize_tiles(button_ids, button_ids[-1], shuffle_factor)
 			total_moves = 0
 			window['MOVES'].update(total_moves)
