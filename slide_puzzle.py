@@ -73,14 +73,14 @@ def check_win(button_ids):
 	return True
 
 def new_game_menu(font_set=FONT_SET):
-	s_factor_tooltip = 'How many \'steps\' the game will take when randomizing the puzzle.\nA low number might make it too easy.'
+	s_factor_tooltip = 'How many \'steps\' the game will take when randomizing the puzzle.\nA low number might make it too easy.\nMinimum: 1 Maximum: 1000'
 	limit_tooltip = 'Check this if you want to limit how many moves you have to solve the puzzle.'
-	limit_num_tooltip = 'The maximum number of moves to solve the puzzle(Only if \'Use Move Limit\' is enabled).'
+	limit_num_tooltip = 'The maximum number of moves to solve the puzzle(Only if \'Use Move Limit\' is enabled).\nMinimum: 1 Maximum: 1000'
 
 	layout = [	[sg.Push(), sg.Text('Game Setup'), sg.Push()],
-					[sg.Text('Shuffle Factor:'), sg.Input(size=10, default_text='100', tooltip=s_factor_tooltip, key='SHUFF')],
+					[sg.Text('Shuffle Factor:'), sg.Input(size=10, default_text='100', tooltip=s_factor_tooltip, key='SHUFF', enable_events=True)],
 					[sg.Text('Use Move Limit?'), sg.Checkbox(text=None,tooltip=limit_tooltip, key='LIMIT')],
-					[sg.Text('Max Moves:'), sg.Input(size=10, default_text='100', tooltip=limit_num_tooltip, key='MAXMOVES')],
+					[sg.Text('Max Moves:'), sg.Input(size=10, default_text='100', tooltip=limit_num_tooltip, key='MAXMOVES', enable_events=True)],
 					[sg.Button('Play!', key='STARTGAME'), sg.Button('Cancel', key='BACK')]	]
 
 	window = sg.Window(title='Game Setup', layout=layout, font=font_set, modal=True)
@@ -90,10 +90,30 @@ def new_game_menu(font_set=FONT_SET):
 		if event in (sg.WIN_CLOSED, 'BACK'):
 			window.close()
 			return 100, False, 100, False
+		if event == 'SHUFF':
+			if not values['SHUFF'].isnumeric():
+				window['SHUFF'].update(''.join(list(x for x in values['SHUFF'] if x.isnumeric())))
+			if window['SHUFF'].get() != '':
+				if int(window['SHUFF'].get()) < 1:
+					window['SHUFF'].update(1)
+				elif int(window['SHUFF'].get()) > 1000:
+					window['SHUFF'].update(1000)
+
+		if event == 'MAXMOVES':
+			if not values['MAXMOVES'].isnumeric():
+				window['MAXMOVES'].update(''.join(list(x for x in values['MAXMOVES'] if x.isnumeric())))
+			if window['MAXMOVES'].get() != '':
+				if int(window['MAXMOVES'].get()) < 1:
+					window['MAXMOVES'].update(1)
+				elif int(window['MAXMOVES'].get()) > 1000:
+					window['MAXMOVES'].update(1000)
+
 		if event == 'STARTGAME':
 			window.close()
-			return int(values['SHUFF']), values['LIMIT'], values['MAXMOVES'], True
-
+			try:
+				return int(values['SHUFF']), values['LIMIT'], int(values['MAXMOVES']), True
+			except ValueError:
+				return 100, False, 100, False
 	window.close()
 
 tiles_grid, button_ids = initialize_tiles()
@@ -116,9 +136,16 @@ while True:
 		if slide_tile(event):
 			total_moves += 1
 			window['MOVES'].update(total_moves)
+		if use_limit:
+			if total_moves > move_limit:
+				sg.popup_ok('Out of moves!', font=FONT_SET)
+				initialize_tiles('new')
+				total_moves = 0
+				window['MOVES'].update(total_moves)
+				randomize_tiles(button_ids, button_ids[-1], shuffle_factor)
 		if check_win(button_ids):
 			sg.popup_ok("You win!", font=FONT_SET)
-			tiles_grid, button_ids = initialize_tiles()
+			initialize_tiles('new')
 			total_moves = 0
 			window['MOVES'].update(total_moves)
 			randomize_tiles(button_ids, button_ids[-1], shuffle_factor)	
@@ -129,5 +156,6 @@ while True:
 			randomize_tiles(button_ids, button_ids[-1], shuffle_factor)
 			total_moves = 0
 			window['MOVES'].update(total_moves)
+
 
 window.close()
